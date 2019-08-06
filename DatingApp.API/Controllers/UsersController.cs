@@ -9,6 +9,8 @@ using DatingApp.API.DTOs;
 using DatingApp.API.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace DatingApp.API.Controllers
 {
@@ -29,11 +31,28 @@ namespace DatingApp.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery]UserParams userParams)
         {
+            var currentUserID = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+
+            var userFromRepo = await _repo.GetUser(currentUserID);
+
+            // var userMapped = _mapper.Map<UserForDetailedDTO>(userFromRepo);
+
+            // var camelCaseFormatter = new JsonSerializerSettings();
+            // camelCaseFormatter.ContractResolver = new CamelCasePropertyNamesContractResolver();
+            // Response.Headers.Add("user", JsonConvert.SerializeObject(userMapped, camelCaseFormatter));
+       
+            userParams.UserID = currentUserID;
+
+            if (string.IsNullOrEmpty(userParams.Gender))
+            {
+                userParams.Gender = userParams.Gender == "male" ? "female" : "male";
+            }
+
             var users = await _repo.GetUsers(userParams);
 
             var usersToReturn = _mapper.Map<IEnumerable<UserForListDTO>>(users);
 
-            Response.AddPagination(users.CurrentPage, users.PageSize, 
+            Response.AddPagination(users.CurrentPage, users.PageSize,
                 users.TotalCount, users.TotalPages);
 
             return Ok(usersToReturn);
