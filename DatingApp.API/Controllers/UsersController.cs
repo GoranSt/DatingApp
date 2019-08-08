@@ -7,6 +7,7 @@ using DatingApp.API.Controllers.DTOs;
 using DatingApp.API.Data;
 using DatingApp.API.DTOs;
 using DatingApp.API.Helpers;
+using DatingApp.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -40,7 +41,7 @@ namespace DatingApp.API.Controllers
             // var camelCaseFormatter = new JsonSerializerSettings();
             // camelCaseFormatter.ContractResolver = new CamelCasePropertyNamesContractResolver();
             // Response.Headers.Add("user", JsonConvert.SerializeObject(userMapped, camelCaseFormatter));
-       
+
             userParams.UserID = currentUserID;
 
             if (string.IsNullOrEmpty(userParams.Gender))
@@ -84,6 +85,42 @@ namespace DatingApp.API.Controllers
                 return NoContent();
 
             throw new Exception($"Updating user {ID} failed on save");
+        }
+
+        [HttpPost("{ID}/like/{recipientID}")]
+        public async Task<IActionResult> LikeUser(int ID, int recipientID)
+        {
+            if (ID != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
+            {
+                return Unauthorized();
+            }
+
+            var like = await _repo.GetLike(ID, recipientID);
+
+            if (like != null)
+            {
+                return BadRequest("You already liked this user");
+            }
+
+            if (await _repo.GetUser(recipientID) == null)
+            {
+                return NotFound();
+            }
+
+            like = new Like
+            {
+                LikerID = ID,
+                LikeeID = recipientID
+            };
+
+            _repo.Add<Like>(like);
+
+            if (await _repo.SaveAll())
+            {
+                return Ok();
+            }
+
+            return BadRequest("Failed to like user");
         }
 
     }
